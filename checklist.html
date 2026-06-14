@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>青年部 チェックリスト</title>
+
+  <!-- ▼▼▼ Firebase SDK ▼▼▼ -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, 'Hiragino Sans', 'Yu Gothic', sans-serif;
+      font-size: 14px;
+      background: #f5f5f5;
+    }
+    h1 {
+      background: #2c5f8a;
+      color: #fff;
+      padding: 14px 16px;
+      font-size: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    #setup-banner {
+      background: #fff3cd;
+      border-left: 4px solid #f0ad4e;
+      padding: 12px 16px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    #setup-banner code {
+      background: #eee;
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+    }
+    thead th {
+      background: #dde8f0;
+      padding: 10px 8px;
+      text-align: center;
+      font-size: 12px;
+      position: sticky;
+      top: 48px;
+      z-index: 9;
+      border-bottom: 2px solid #b0c8dc;
+    }
+    tbody tr {
+      border-bottom: 1px solid #e8e8e8;
+    }
+    tbody tr:nth-child(even) { background: #fafafa; }
+    tbody td {
+      padding: 10px 8px;
+      vertical-align: middle;
+    }
+    .col-branch { width: 72px; color: #555; font-size: 12px; }
+    .col-name   { width: 90px; }
+    .col-shop   { font-size: 12px; color: #444; }
+    .col-check  {
+      width: 52px;
+      text-align: center;
+    }
+    .col-divider {
+      width: 1px;
+      padding: 0;
+      background: #b0c8dc;
+    }
+    tbody .col-divider {
+      background: #d0d0d0;
+    }
+    .check-cell {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      line-height: 40px;
+      font-size: 22px;
+      border-radius: 8px;
+      border: 2px solid #ccc;
+      background: #fafafa;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s, border-color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .check-cell.checked {
+      background: #e8f5e9;
+      border-color: #43a047;
+      color: #2e7d32;
+    }
+    .check-cell:active {
+      opacity: 0.6;
+    }
+    .branch-header td {
+      background: #2c5f8a;
+      color: #fff;
+      font-weight: bold;
+      font-size: 13px;
+      padding: 6px 8px;
+      letter-spacing: 0.05em;
+    }
+
+    /* 確認モーダル */
+    #modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    #modal-overlay.show { display: flex; }
+    #modal {
+      background: #fff;
+      border-radius: 14px;
+      padding: 24px 20px 18px;
+      width: min(88vw, 340px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+      text-align: center;
+    }
+    #modal-icon { font-size: 32px; margin-bottom: 8px; }
+    #modal-title {
+      font-size: 15px;
+      font-weight: bold;
+      margin-bottom: 6px;
+      color: #222;
+    }
+    #modal-body {
+      font-size: 13px;
+      color: #555;
+      margin-bottom: 20px;
+      line-height: 1.6;
+    }
+    .modal-btns {
+      display: flex;
+      gap: 10px;
+    }
+    .modal-btns button {
+      flex: 1;
+      padding: 13px 0;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #modal-cancel {
+      background: #eee;
+      color: #555;
+    }
+    #modal-ok {
+      background: #2c5f8a;
+      color: #fff;
+    }
+    #modal-ok.remove {
+      background: #c62828;
+    }
+  </style>
+</head>
+<body>
+
+<h1>青年部 会計チェックリスト</h1>
+
+<!-- 確認モーダル -->
+<div id="modal-overlay">
+  <div id="modal">
+    <div id="modal-icon"></div>
+    <div id="modal-title"></div>
+    <div id="modal-body"></div>
+    <div class="modal-btns">
+      <button id="modal-cancel">キャンセル</button>
+      <button id="modal-ok">確認</button>
+    </div>
+  </div>
+</div>
+
+<!--
+  ════════════════════════════════════════════
+  【初回セットアップ手順】
+
+  1. https://console.firebase.google.com/ にアクセス
+  2. 「プロジェクトを作成」→ 任意の名前で作成
+  3. 左メニュー「構築」→「Realtime Database」→「データベースを作成」
+     ・「テストモードで開始」を選択（後で変更可）
+  4. 左メニュー「プロジェクトの概要」の歯車→「プロジェクトの設定」
+  5. 「マイアプリ」→「</>」(ウェブ) でアプリ登録 → firebaseConfig をコピー
+  6. 下の firebaseConfig の {} 内を貼り付けて上書き保存
+  7. このHTMLファイルをQRコードや共有リンクで全員に配布
+  ════════════════════════════════════════════
+-->
+
+<div id="setup-banner" id="banner">
+  ⚠️ Firebase 未設定：下記の手順で <code>firebaseConfig</code> を設定してください。<br>
+  設定後、このバナーは自動的に消えます。
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th class="col-branch">支部</th>
+      <th class="col-name">氏名</th>
+      <th class="col-shop">店名</th>
+      <th class="col-check">会計済</th>
+      <th class="col-divider"></th>
+      <th class="col-check">個別領収書</th>
+    </tr>
+  </thead>
+  <tbody id="tbody"></tbody>
+</table>
+
+<script>
+// ════════════════════════════════════════
+// ▼ ここに Firebase の設定を貼り付ける ▼
+const firebaseConfig = {
+  apiKey: "AIzaSyD4kG4I-_uw4xRM0YeV7Z7UAZANCkSVaYc",
+  authDomain: "seinenbu-check.firebaseapp.com",
+  databaseURL: "https://seinenbu-check-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "seinenbu-check",
+  storageBucket: "seinenbu-check.firebasestorage.app",
+  messagingSenderId: "760118548230",
+  appId: "1:760118548230:web:7f00ee83cb9ed3bfe83087"
+};
+
+// ▲ ここまで ▲
+// ════════════════════════════════════════
+
+// リスト（都道府県順）
+const ROWS = [
+  { branch:"道北",     name:"松田　泰武",   shop:"有限会社コマヤ薬局" },
+  { branch:"青森",     name:"高橋　佳輔",   shop:"安田調剤薬局" },
+  { branch:"秋田",     name:"佐藤　徳信",   shop:"さくら薬局" },
+  { branch:"山形",     name:"鈴木　秀統",   shop:"マルイチ鈴木薬局" },
+  { branch:"福島",     name:"島原　荘信",   shop:"ローズ薬局" },
+  { branch:"茨城",     name:"関井　廉",     shop:"せきい薬局" },
+  { branch:"茨城",     name:"根田　滋",     shop:"ビッグママあこ薬局" },
+  { branch:"千葉",     name:"星野　悟",     shop:"いせや星野薬局" },
+  { branch:"千葉",     name:"野口　貴司",   shop:"エビス薬局" },
+  { branch:"東京城北", name:"前納　剛",     shop:"サカエ薬局(赤羽)" },
+  { branch:"東京城北", name:"前納　啓一",   shop:"マエノ薬局" },
+  { branch:"東京城北", name:"石鍋　公載",   shop:"栗原薬局神谷一丁目店" },
+  { branch:"東京城北", name:"佐藤　秀俊",   shop:"マリンカ薬局" },
+  { branch:"東京西",   name:"井戸　啓介",   shop:"岡崎薬局" },
+  { branch:"東京西",   name:"渡部　紘行",   shop:"薬局わたなべファーマシー" },
+  { branch:"東京西",   name:"土方　陽介",   shop:"ヒジカタ薬局" },
+  { branch:"東京西",   name:"中野　純希",   shop:"石井薬局" },
+  { branch:"東京西",   name:"渡辺　絋行",   shop:"わたなべファーマシー" },
+  { branch:"東京多摩", name:"佐藤　康章",   shop:"なみき薬局本店" },
+  { branch:"東京中央", name:"桑山　俊哉",   shop:"桑山清心堂薬局" },
+  { branch:"東京中央", name:"内田　敏治",   shop:"こうま薬局糀谷店" },
+  { branch:"東京東",   name:"吉田　正樹",   shop:"吉田薬局" },
+  { branch:"東京東",   name:"鹿倉　康孝",   shop:"シカクラ薬局" },
+  { branch:"東京東",   name:"金坂　太一",   shop:"ヒラタ薬局" },
+  { branch:"東京東",   name:"遠藤　育代",   shop:"黒田薬局" },
+  { branch:"東京東",   name:"土肥　美弥子", shop:"シバタ薬局" },
+  { branch:"東京南",   name:"鈴木　暢人",   shop:"桂香堂カブ薬局" },
+  { branch:"東京南",   name:"西脇　宏",     shop:"イワサキ薬局" },
+  { branch:"東京南",   name:"藤本　恵寿",   shop:"藤本薬局" },
+  { branch:"東京北",   name:"高木　孝一郎", shop:"高木薬局" },
+  { branch:"東京北",   name:"樋口　秀",     shop:"だるま堂薬局" },
+  { branch:"東京北",   name:"安田　慶輔",   shop:"盛慶堂薬局" },
+  { branch:"東京墨東", name:"一ノ瀬　菜津子",shop:"三木青雲堂薬局" },
+  { branch:"新潟",     name:"桂　重之",     shop:"くすりの桂" },
+  { branch:"新潟",     name:"重田　航",     shop:"中央町薬局" },
+  { branch:"石川",     name:"岡田　健太",   shop:"八日市おかだ薬局" },
+  { branch:"福井",     name:"澁谷　彰祐",   shop:"渋谷薬局" },
+  { branch:"長野",     name:"井上　智之",   shop:"コスモス薬局" },
+  { branch:"長野",     name:"山﨑　秀己",   shop:"やまざき薬局" },
+  { branch:"長野",     name:"横林　邦明",   shop:"横林薬局" },
+  { branch:"岐阜",     name:"伊藤　惟",     shop:"伊藤薬局　桐生店" },
+  { branch:"岐阜",     name:"伊藤　祥央",   shop:"伊藤薬局" },
+  { branch:"愛知東",   name:"辻村　有輝",   shop:"辻村薬局　ひがしわき店" },
+  { branch:"近江大和", name:"竹下　裕基",   shop:"タケシタ薬局" },
+  { branch:"近江大和", name:"佐藤　良輔",   shop:"ケアリア調剤薬局" },
+  { branch:"近江大和", name:"澤村　尚",     shop:"つばさ薬局" },
+  { branch:"近江大和", name:"辻元　康利",   shop:"はしもと薬局" },
+  { branch:"京都",     name:"糸井　佐津",   shop:"下垣薬局" },
+  { branch:"京都",     name:"田中　浩之",   shop:"おぐりす薬局" },
+  { branch:"京都",     name:"石川　佳嗣",   shop:"石川薬局桃山店" },
+  { branch:"大阪南",   name:"柏木　秀文",   shop:"薬局白十字" },
+  { branch:"大阪南",   name:"人見　一彰",   shop:"ドラッグひとみ長崎屋岸和田店" },
+  { branch:"大阪南",   name:"上野　悦彦",   shop:"上野薬局" },
+  { branch:"大阪北",   name:"吉田　智人",   shop:"メロディ薬店" },
+  { branch:"大阪北",   name:"長尾　崇大",   shop:"大学薬局" },
+  { branch:"兵庫",     name:"寺田　健一郎", shop:"ドラッグマート薬局" },
+  { branch:"兵庫",     name:"田中　優磨",   shop:"リズム薬局" },
+  { branch:"兵庫",     name:"來住　拓弥",   shop:"小野山陽堂薬局" },
+  { branch:"兵庫",     name:"來住　吉晃",   shop:"山陽堂薬局" },
+  { branch:"鳥取",     name:"青砥　真央",   shop:"素問元気堂薬局" },
+  { branch:"島根",     name:"古山　由郎",   shop:"フラワー薬局" },
+  { branch:"岡山",     name:"広本　篤",     shop:"コーモト薬局富田店" },
+  { branch:"岡山",     name:"佐藤　茂史",   shop:"コーモト薬局駅前店" },
+  { branch:"香川",     name:"大西　美恵子", shop:"大西薬局" },
+  { branch:"高知",     name:"山川　佳佑",   shop:"山川ライオン堂薬局" },
+  { branch:"佐賀",     name:"曲渕　剛太",   shop:"あさひ薬局" },
+  { branch:"佐賀",     name:"大野　太",     shop:"エイト薬局目逹原店" },
+  { branch:"佐賀",     name:"高祖　仁志",   shop:"コーソ薬局　諸富店" },
+];
+
+// Firebase 未設定チェック
+const isConfigured = firebaseConfig.apiKey !== "YOUR_API_KEY";
+if (isConfigured) {
+  document.getElementById('setup-banner').style.display = 'none';
+}
+
+// テーブル描画
+const tbody = document.getElementById('tbody');
+let prevBranch = null;
+ROWS.forEach((row, i) => {
+  if (row.branch !== prevBranch) {
+    const hdr = document.createElement('tr');
+    hdr.className = 'branch-header';
+    hdr.innerHTML = `<td colspan="6">── ${row.branch} ──</td>`;
+    tbody.appendChild(hdr);
+    prevBranch = row.branch;
+  }
+  const tr = document.createElement('tr');
+  tr.dataset.idx = i;
+  tr.innerHTML = `
+    <td class="col-branch">${row.branch}</td>
+    <td class="col-name">${row.name}</td>
+    <td class="col-shop">${row.shop}</td>
+    <td class="col-check"><span class="check-cell" data-idx="${i}" data-col="e"></span></td>
+    <td class="col-divider"></td>
+    <td class="col-check"><span class="check-cell" data-idx="${i}" data-col="f"></span></td>
+  `;
+  tbody.appendChild(tr);
+});
+
+// チェック状態管理 (col: 'e' or 'f')
+const checks = { e: {}, f: {} };
+
+const COL_LABEL = { e: '会計済み', f: '個別領収書' };
+
+function renderCheck(col, idx, val) {
+  const el = document.querySelector(`.check-cell[data-col="${col}"][data-idx="${idx}"]`);
+  if (!el) return;
+  if (val) {
+    el.textContent = '✔';
+    el.classList.add('checked');
+  } else {
+    el.textContent = '';
+    el.classList.remove('checked');
+  }
+}
+
+// 確認モーダル
+function showConfirm(col, idx, newVal, onOk) {
+  const row = ROWS[idx];
+  const overlay = document.getElementById('modal-overlay');
+  const label = COL_LABEL[col];
+  document.getElementById('modal-icon').textContent  = newVal ? '✔' : '🗑️';
+  document.getElementById('modal-title').textContent = newVal
+    ? `「${label}」にしますか？`
+    : `「${label}」のチェックを外しますか？`;
+  document.getElementById('modal-body').innerHTML =
+    `<strong>${row.name}</strong><br>${row.shop}`;
+  const okBtn = document.getElementById('modal-ok');
+  okBtn.textContent = newVal ? '済みにする' : '外す';
+  okBtn.className   = newVal ? '' : 'remove';
+  overlay.classList.add('show');
+
+  const close = () => overlay.classList.remove('show');
+  const handleOk = () => { close(); onOk(); cleanup(); };
+  const handleCancel = () => { close(); cleanup(); };
+  const handleOutside = e => { if (e.target === overlay) { close(); cleanup(); } };
+
+  function cleanup() {
+    okBtn.removeEventListener('click', handleOk);
+    document.getElementById('modal-cancel').removeEventListener('click', handleCancel);
+    overlay.removeEventListener('click', handleOutside);
+  }
+  okBtn.addEventListener('click', handleOk);
+  document.getElementById('modal-cancel').addEventListener('click', handleCancel);
+  overlay.addEventListener('click', handleOutside);
+}
+
+if (isConfigured) {
+  // Firebase 初期化
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const refs = { e: db.ref('checks_e'), f: db.ref('checks_f') };
+
+  // リアルタイム同期
+  ['e', 'f'].forEach(col => {
+    refs[col].on('value', snap => {
+      const data = snap.val() || {};
+      ROWS.forEach((_, i) => {
+        checks[col][i] = !!data[i];
+        renderCheck(col, i, checks[col][i]);
+      });
+    });
+  });
+
+  // タップイベント
+  document.getElementById('tbody').addEventListener('click', e => {
+    const cell = e.target.closest('.check-cell');
+    if (!cell) return;
+    const idx = parseInt(cell.dataset.idx);
+    const col  = cell.dataset.col;
+    const newVal = !checks[col][idx];
+    showConfirm(col, idx, newVal, () => {
+      refs[col].child(String(idx)).set(newVal ? true : null);
+    });
+  });
+
+} else {
+  // Firebase 未設定時はローカル動作（共有なし）
+  document.getElementById('tbody').addEventListener('click', e => {
+    const cell = e.target.closest('.check-cell');
+    if (!cell) return;
+    const idx = parseInt(cell.dataset.idx);
+    const col  = cell.dataset.col;
+    const newVal = !checks[col][idx];
+    showConfirm(col, idx, newVal, () => {
+      checks[col][idx] = newVal;
+      renderCheck(col, idx, newVal);
+    });
+  });
+}
+</script>
+</body>
+</html>
