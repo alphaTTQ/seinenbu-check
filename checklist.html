@@ -12,7 +12,7 @@
       font-family: -apple-system, 'Hiragino Sans', 'Yu Gothic', sans-serif;
       font-size: 14px;
       background: #f5f5f5;
-      padding-bottom: 84px;
+      padding-bottom: 90px;
     }
     h1 {
       background: #2c5f8a;
@@ -31,6 +31,7 @@
       line-height: 1.6;
     }
     #setup-banner code { background: #eee; padding: 1px 4px; border-radius: 3px; font-family: monospace; }
+
     table { width: 100%; border-collapse: collapse; background: #fff; }
     thead th {
       background: #dde8f0;
@@ -46,12 +47,13 @@
     tbody tr:nth-child(even) { background: #fafafa; }
     tbody td { padding: 10px 8px; vertical-align: middle; }
     .col-branch { width: 68px; color: #555; font-size: 12px; }
-    .col-name   { width: 86px; }
+    .col-name   { width: 80px; font-size: 13px; }
     .col-shop   { font-size: 12px; color: #444; }
     .col-check  { width: 52px; text-align: center; }
     .col-divider { width: 1px; padding: 0; background: #b0c8dc; }
     tbody .col-divider { background: #d0d0d0; }
-    .col-del { width: 36px; text-align: center; padding: 4px; }
+    .col-action { width: 36px; text-align: center; padding: 4px; }
+
     .check-cell {
       display: inline-block;
       width: 40px; height: 40px; line-height: 40px;
@@ -66,48 +68,70 @@
     }
     .check-cell.checked { background: #e8f5e9; border-color: #43a047; color: #2e7d32; }
     .check-cell:active { opacity: 0.6; }
-    .branch-header td {
-      background: #2c5f8a;
-      color: #fff;
-      font-weight: bold;
-      font-size: 13px;
-      padding: 6px 8px;
-      letter-spacing: 0.05em;
-    }
-    .del-btn { display: none; }
 
-    /* Floating add button */
-    #fab {
-      position: fixed;
-      bottom: 20px; right: 20px;
-      width: 56px; height: 56px;
-      border-radius: 50%;
-      background: #2c5f8a;
-      color: #fff;
+    .branch-header td {
+      background: #2c5f8a; color: #fff;
+      font-weight: bold; font-size: 13px;
+      padding: 6px 8px; letter-spacing: 0.05em;
+    }
+
+    /* 行アクションボタン（削除・編集）*/
+    .row-action-btn {
+      display: none;
+      align-items: center; justify-content: center;
+      width: 32px; height: 32px;
+      border-radius: 6px;
       border: none;
-      font-size: 30px;
+      background: transparent;
+      font-size: 17px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .del-btn  { color: #bbb; }
+    .edit-btn { color: #bbb; font-size: 15px; }
+    .del-btn:active  { background: #fee2e2; color: #c62828; }
+    .edit-btn:active { background: #e8f0fe; color: #1a56a0; }
+    body.delete-mode .del-btn  { display: inline-flex; }
+    body.edit-mode   .edit-btn { display: inline-flex; }
+
+    /* FABグループ */
+    #fab-group {
+      position: fixed;
+      bottom: 20px; right: 16px;
+      display: flex;
+      gap: 10px;
+      z-index: 50;
+    }
+    .fab {
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      border: none;
+      color: #fff;
+      font-size: 26px;
       display: flex; align-items: center; justify-content: center;
       cursor: pointer;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.3);
-      z-index: 50;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.28);
       -webkit-tap-highlight-color: transparent;
-      line-height: 1;
+      transition: opacity 0.15s, transform 0.15s;
     }
-    #fab:active { opacity: 0.8; transform: scale(0.95); }
+    .fab:active { opacity: 0.8; transform: scale(0.93); }
+    #fab-add  { background: #2c5f8a; }
+    #fab-del  { background: #888; }
+    #fab-edit { background: #888; }
+    #fab-del.active  { background: #c62828; }
+    #fab-edit.active { background: #1a56a0; }
 
-    /* Overlay base */
+    /* オーバーレイ共通 */
     .overlay {
       display: none;
-      position: fixed;
-      inset: 0;
+      position: fixed; inset: 0;
       background: rgba(0,0,0,0.45);
       z-index: 100;
-      align-items: center;
-      justify-content: center;
+      align-items: center; justify-content: center;
     }
     .overlay.show { display: flex; }
 
-    /* Confirm modal */
+    /* 確認モーダル */
     #modal {
       background: #fff;
       border-radius: 14px;
@@ -116,9 +140,9 @@
       box-shadow: 0 8px 32px rgba(0,0,0,0.25);
       text-align: center;
     }
-    #modal-icon { font-size: 32px; margin-bottom: 8px; }
+    #modal-icon  { font-size: 32px; margin-bottom: 8px; }
     #modal-title { font-size: 15px; font-weight: bold; margin-bottom: 6px; color: #222; }
-    #modal-body { font-size: 13px; color: #555; margin-bottom: 20px; line-height: 1.6; }
+    #modal-body  { font-size: 13px; color: #555; margin-bottom: 20px; line-height: 1.6; }
     .modal-btns { display: flex; gap: 10px; }
     .modal-btns button {
       flex: 1; padding: 13px 0;
@@ -127,18 +151,18 @@
       -webkit-tap-highlight-color: transparent;
     }
     #modal-cancel { background: #eee; color: #555; }
-    #modal-ok { background: #2c5f8a; color: #fff; }
+    #modal-ok     { background: #2c5f8a; color: #fff; }
     #modal-ok.danger { background: #c62828; }
 
-    /* Add form modal */
-    #add-modal {
+    /* 追加・編集フォームモーダル共通 */
+    .form-modal {
       background: #fff;
       border-radius: 14px;
       padding: 22px 20px 18px;
       width: min(92vw, 360px);
       box-shadow: 0 8px 32px rgba(0,0,0,0.25);
     }
-    #add-modal h3 { font-size: 16px; font-weight: bold; margin-bottom: 16px; color: #222; }
+    .form-modal h3 { font-size: 16px; font-weight: bold; margin-bottom: 16px; color: #222; }
     .form-group { margin-bottom: 12px; }
     .form-group label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; }
     .form-group select,
@@ -158,15 +182,15 @@
       font-size: 15px; font-weight: bold; cursor: pointer;
       -webkit-tap-highlight-color: transparent;
     }
-    #add-cancel { background: #eee; color: #555; }
-    #add-submit { background: #2c5f8a; color: #fff; }
+    .btn-cancel { background: #eee; color: #555; }
+    .btn-submit { background: #2c5f8a; color: #fff; }
   </style>
 </head>
 <body>
 
 <h1>青年部 会計チェックリスト</h1>
 
-<!-- 確認モーダル（チェック切替・追加・削除共用） -->
+<!-- 確認モーダル（共用） -->
 <div id="modal-overlay" class="overlay">
   <div id="modal">
     <div id="modal-icon"></div>
@@ -181,7 +205,7 @@
 
 <!-- 追加フォームモーダル -->
 <div id="add-overlay" class="overlay">
-  <div id="add-modal">
+  <div class="form-modal">
     <h3>メンバーを追加</h3>
     <div class="form-group">
       <label>支部</label>
@@ -196,8 +220,27 @@
       <input type="text" id="form-shop" placeholder="例：山田薬局">
     </div>
     <div class="form-btns">
-      <button id="add-cancel">キャンセル</button>
-      <button id="add-submit">確認へ</button>
+      <button class="btn-cancel" id="add-cancel">キャンセル</button>
+      <button class="btn-submit" id="add-submit">確認へ</button>
+    </div>
+  </div>
+</div>
+
+<!-- 編集フォームモーダル -->
+<div id="edit-overlay" class="overlay">
+  <div class="form-modal">
+    <h3>メンバーを修正</h3>
+    <div class="form-group">
+      <label>氏名</label>
+      <input type="text" id="edit-name">
+    </div>
+    <div class="form-group">
+      <label>店名</label>
+      <input type="text" id="edit-shop">
+    </div>
+    <div class="form-btns">
+      <button class="btn-cancel" id="edit-cancel">キャンセル</button>
+      <button class="btn-submit" id="edit-submit">確認へ</button>
     </div>
   </div>
 </div>
@@ -215,13 +258,24 @@
       <th class="col-check">会計済</th>
       <th class="col-divider"></th>
       <th class="col-check">個別領収書</th>
-      <th class="col-del"></th>
+      <th class="col-action"></th>
     </tr>
   </thead>
   <tbody id="tbody"></tbody>
 </table>
 
-<button id="fab" aria-label="メンバーを追加">＋</button>
+<!-- FABグループ: [＋] [－] [✏] -->
+<div id="fab-group">
+  <button class="fab" id="fab-add"  aria-label="追加">＋</button>
+  <button class="fab" id="fab-del"  aria-label="削除モード">－</button>
+  <button class="fab" id="fab-edit" aria-label="編集モード">
+    <!-- ペンアイコン (SVG) -->
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+    </svg>
+  </button>
+</div>
 
 <script>
 // ════════════════════════════════════
@@ -254,7 +308,7 @@ const BRANCHES = [
 ];
 const BRANCH_ORDER = Object.fromEntries(BRANCHES.map((b, i) => [b, i]));
 
-// 初期データ（北から南順、固定ID）
+// 初期データ
 const BASE_ROWS = [
   { id:'b0',  branch:'道北',     name:'松田　泰武',    shop:'有限会社コマヤ薬局' },
   { id:'b1',  branch:'青森',     name:'高橋　佳輔',    shop:'安田調剤薬局' },
@@ -327,16 +381,32 @@ const BASE_ROWS = [
 ];
 
 // ─── 状態 ───
-const state = { additions: {}, deleted: {}, checks_e: {}, checks_f: {} };
+const state = {
+  additions: {}, deleted: {}, edits: {},
+  checks_e: {}, checks_f: {}
+};
 
 function getAllRows() {
-  const customs = Object.entries(state.additions).map(([id, v]) => ({ id, ...v }));
-  return [...BASE_ROWS, ...customs];
+  return [
+    ...BASE_ROWS,
+    ...Object.entries(state.additions).map(([id, v]) => ({ id, ...v }))
+  ];
+}
+
+function getRow(id) {
+  const r = getAllRows().find(r => r.id === id);
+  if (!r) return null;
+  const ed = state.edits[id];
+  return ed ? { ...r, name: ed.name ?? r.name, shop: ed.shop ?? r.shop } : r;
 }
 
 function getVisibleRows() {
   return getAllRows()
     .filter(r => !state.deleted[r.id])
+    .map(r => {
+      const ed = state.edits[r.id];
+      return ed ? { ...r, name: ed.name ?? r.name, shop: ed.shop ?? r.shop } : r;
+    })
     .sort((a, b) => {
       const oa = BRANCH_ORDER[a.branch] ?? 99;
       const ob = BRANCH_ORDER[b.branch] ?? 99;
@@ -368,21 +438,29 @@ function renderTable() {
       <td class="col-check"><span class="check-cell${ce?' checked':''}" data-id="${row.id}" data-col="e">${ce?'✔':''}</span></td>
       <td class="col-divider"></td>
       <td class="col-check"><span class="check-cell${cf?' checked':''}" data-id="${row.id}" data-col="f">${cf?'✔':''}</span></td>
-      <td class="col-del"><button class="del-btn" data-id="${row.id}" aria-label="削除">🗑</button></td>
+      <td class="col-action">
+        <button class="row-action-btn del-btn"  data-id="${row.id}" aria-label="削除">🗑</button>
+        <button class="row-action-btn edit-btn" data-id="${row.id}" aria-label="修正">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+        </button>
+      </td>
     `;
     tbody.appendChild(tr);
   });
 }
 
-// ─── 共通確認モーダル ───
+// ─── 確認モーダル ───
 function showModal({ icon, title, body, okLabel, okDanger, onOk }) {
   const overlay = document.getElementById('modal-overlay');
-  document.getElementById('modal-icon').textContent = icon;
+  document.getElementById('modal-icon').textContent  = icon;
   document.getElementById('modal-title').textContent = title;
-  document.getElementById('modal-body').innerHTML = body;
+  document.getElementById('modal-body').innerHTML    = body;
   const okBtn = document.getElementById('modal-ok');
   okBtn.textContent = okLabel;
-  okBtn.className = okDanger ? 'danger' : '';
+  okBtn.className   = okDanger ? 'danger' : '';
   overlay.classList.add('show');
 
   const close = () => overlay.classList.remove('show');
@@ -399,25 +477,24 @@ function showModal({ icon, title, body, okLabel, okDanger, onOk }) {
   overlay.addEventListener('click', handleOut);
 }
 
-// ─── Firebase or ローカル ───
+// ─── Firebase ───
 const isConfigured = firebaseConfig.apiKey !== 'YOUR_API_KEY';
-if (isConfigured) {
-  document.getElementById('setup-banner').style.display = 'none';
-}
+if (isConfigured) document.getElementById('setup-banner').style.display = 'none';
 
 let fbRefs = {};
-
 if (isConfigured) {
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
   fbRefs = {
     additions: db.ref('additions'),
     deleted:   db.ref('deleted'),
+    edits:     db.ref('edits'),
     checks_e:  db.ref('checks_e'),
     checks_f:  db.ref('checks_f'),
   };
   fbRefs.additions.on('value', s => { state.additions = s.val() || {}; renderTable(); });
   fbRefs.deleted  .on('value', s => { state.deleted   = s.val() || {}; renderTable(); });
+  fbRefs.edits    .on('value', s => { state.edits     = s.val() || {}; renderTable(); });
   fbRefs.checks_e .on('value', s => { state.checks_e  = s.val() || {}; renderTable(); });
   fbRefs.checks_f .on('value', s => { state.checks_f  = s.val() || {}; renderTable(); });
 } else {
@@ -432,7 +509,7 @@ document.getElementById('tbody').addEventListener('click', e => {
     const id  = cell.dataset.id;
     const col = cell.dataset.col;
     const newVal = !state[`checks_${col}`][id];
-    const row = getAllRows().find(r => r.id === id);
+    const row = getRow(id);
     const label = col === 'e' ? '会計済み' : '個別領収書';
     showModal({
       icon: newVal ? '✔' : '🗑️',
@@ -441,12 +518,8 @@ document.getElementById('tbody').addEventListener('click', e => {
       okLabel: newVal ? '済みにする' : '外す',
       okDanger: !newVal,
       onOk: () => {
-        if (isConfigured) {
-          fbRefs[`checks_${col}`].child(id).set(newVal ? true : null);
-        } else {
-          state[`checks_${col}`][id] = newVal || undefined;
-          renderTable();
-        }
+        if (isConfigured) fbRefs[`checks_${col}`].child(id).set(newVal ? true : null);
+        else { if (newVal) state[`checks_${col}`][id] = true; else delete state[`checks_${col}`][id]; renderTable(); }
       }
     });
     return;
@@ -456,7 +529,7 @@ document.getElementById('tbody').addEventListener('click', e => {
   const delBtn = e.target.closest('.del-btn');
   if (delBtn) {
     const id  = delBtn.dataset.id;
-    const row = getAllRows().find(r => r.id === id);
+    const row = getRow(id);
     showModal({
       icon: '🗑️',
       title: 'このメンバーを削除しますか？',
@@ -464,50 +537,74 @@ document.getElementById('tbody').addEventListener('click', e => {
       okLabel: '削除する',
       okDanger: true,
       onOk: () => {
-        if (isConfigured) {
-          fbRefs.deleted.child(id).set(true);
-        } else {
-          state.deleted[id] = true;
-          renderTable();
-        }
+        if (isConfigured) fbRefs.deleted.child(id).set(true);
+        else { state.deleted[id] = true; renderTable(); }
       }
     });
+    return;
+  }
+
+  // 編集
+  const editBtn = e.target.closest('.edit-btn');
+  if (editBtn) {
+    const id  = editBtn.dataset.id;
+    const row = getRow(id);
+    document.getElementById('edit-name').value = row.name;
+    document.getElementById('edit-shop').value = row.shop;
+    document.getElementById('edit-overlay').classList.add('show');
+    document.getElementById('edit-submit').onclick = () => {
+      const newName = document.getElementById('edit-name').value.trim();
+      const newShop = document.getElementById('edit-shop').value.trim();
+      if (!newName || !newShop) { alert('氏名と店名を入力してください'); return; }
+      document.getElementById('edit-overlay').classList.remove('show');
+      showModal({
+        icon: '✏️',
+        title: 'この内容で修正しますか？',
+        body: `<strong>${newName}</strong><br>${newShop}<br><small style="color:#888">${row.branch}</small>`,
+        okLabel: '修正する',
+        okDanger: false,
+        onOk: () => {
+          if (isConfigured) {
+            fbRefs.edits.child(id).set({ name: newName, shop: newShop });
+          } else {
+            state.edits[id] = { name: newName, shop: newShop };
+            renderTable();
+          }
+        }
+      });
+    };
   }
 });
 
-// ─── 支部ドロップダウン生成 ───
-const sel = document.getElementById('form-branch');
-BRANCHES.forEach(b => {
-  const opt = document.createElement('option');
-  opt.value = b; opt.textContent = b;
-  sel.appendChild(opt);
+// ─── 編集フォームキャンセル ───
+document.getElementById('edit-cancel').addEventListener('click', () => {
+  document.getElementById('edit-overlay').classList.remove('show');
+});
+document.getElementById('edit-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('edit-overlay'))
+    document.getElementById('edit-overlay').classList.remove('show');
 });
 
-// ─── 追加ボタン（FAB） ───
-document.getElementById('fab').addEventListener('click', () => {
+// ─── FABグループ ───
+// 追加
+document.getElementById('fab-add').addEventListener('click', () => {
   document.getElementById('form-name').value = '';
   document.getElementById('form-shop').value = '';
-  sel.selectedIndex = 0;
+  document.getElementById('form-branch').selectedIndex = 0;
   document.getElementById('add-overlay').classList.add('show');
 });
-
 document.getElementById('add-cancel').addEventListener('click', () => {
   document.getElementById('add-overlay').classList.remove('show');
 });
-
 document.getElementById('add-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('add-overlay'))
     document.getElementById('add-overlay').classList.remove('show');
 });
-
 document.getElementById('add-submit').addEventListener('click', () => {
-  const branch = sel.value;
+  const branch = document.getElementById('form-branch').value;
   const name   = document.getElementById('form-name').value.trim();
   const shop   = document.getElementById('form-shop').value.trim();
-  if (!name || !shop) {
-    alert('氏名と店名を入力してください');
-    return;
-  }
+  if (!name || !shop) { alert('氏名と店名を入力してください'); return; }
   document.getElementById('add-overlay').classList.remove('show');
   showModal({
     icon: '➕',
@@ -516,15 +613,38 @@ document.getElementById('add-submit').addEventListener('click', () => {
     okLabel: '追加する',
     okDanger: false,
     onOk: () => {
-      if (isConfigured) {
-        fbRefs.additions.push({ branch, name, shop });
-      } else {
-        const id = 'c' + Date.now();
-        state.additions[id] = { branch, name, shop };
-        renderTable();
-      }
+      if (isConfigured) fbRefs.additions.push({ branch, name, shop });
+      else { state.additions['c'+Date.now()] = { branch, name, shop }; renderTable(); }
     }
   });
+});
+
+// 削除モードトグル
+document.getElementById('fab-del').addEventListener('click', () => {
+  const btn = document.getElementById('fab-del');
+  const active = btn.classList.toggle('active');
+  document.body.classList.toggle('delete-mode', active);
+  // 編集モードはOFF
+  document.getElementById('fab-edit').classList.remove('active');
+  document.body.classList.remove('edit-mode');
+});
+
+// 編集モードトグル
+document.getElementById('fab-edit').addEventListener('click', () => {
+  const btn = document.getElementById('fab-edit');
+  const active = btn.classList.toggle('active');
+  document.body.classList.toggle('edit-mode', active);
+  // 削除モードはOFF
+  document.getElementById('fab-del').classList.remove('active');
+  document.body.classList.remove('delete-mode');
+});
+
+// ─── 支部ドロップダウン生成 ───
+const sel = document.getElementById('form-branch');
+BRANCHES.forEach(b => {
+  const opt = document.createElement('option');
+  opt.value = b; opt.textContent = b;
+  sel.appendChild(opt);
 });
 </script>
 </body>
