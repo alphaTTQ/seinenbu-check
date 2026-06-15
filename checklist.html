@@ -588,6 +588,9 @@ document.getElementById('edit-overlay').addEventListener('click', e => {
 // ─── FABグループ ───
 // 追加
 document.getElementById('fab-add').addEventListener('click', () => {
+  document.getElementById('fab-del').classList.remove('active');
+  document.getElementById('fab-edit').classList.remove('active');
+  document.body.classList.remove('delete-mode', 'edit-mode');
   document.getElementById('form-name').value = '';
   document.getElementById('form-shop').value = '';
   document.getElementById('form-branch').selectedIndex = 0;
