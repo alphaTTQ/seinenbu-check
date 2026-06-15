@@ -642,6 +642,22 @@ document.getElementById('fab-edit').addEventListener('click', () => {
   document.body.classList.remove('delete-mode');
 });
 
+// ─── モード外タップでオフ ───
+document.addEventListener('click', e => {
+  if (document.body.classList.contains('delete-mode')) {
+    if (!e.target.closest('.del-btn') && !e.target.closest('#fab-del')) {
+      document.body.classList.remove('delete-mode');
+      document.getElementById('fab-del').classList.remove('active');
+    }
+  }
+  if (document.body.classList.contains('edit-mode')) {
+    if (!e.target.closest('.edit-btn') && !e.target.closest('#fab-edit') && !e.target.closest('#edit-overlay')) {
+      document.body.classList.remove('edit-mode');
+      document.getElementById('fab-edit').classList.remove('active');
+    }
+  }
+});
+
 // ─── 支部ドロップダウン生成 ───
 const sel = document.getElementById('form-branch');
 BRANCHES.forEach(b => {
