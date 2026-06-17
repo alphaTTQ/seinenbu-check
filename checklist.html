@@ -56,9 +56,9 @@
 
     .check-cell {
       display: inline-block;
-      width: 40px; height: 40px; line-height: 40px;
-      font-size: 22px;
-      border-radius: 8px;
+      width: 32px; height: 32px; line-height: 32px;
+      font-size: 18px;
+      border-radius: 7px;
       border: 2px solid #ccc;
       background: #fafafa;
       cursor: pointer;
@@ -258,6 +258,8 @@
       <th class="col-check">会計済</th>
       <th class="col-divider"></th>
       <th class="col-check">個別領収書</th>
+      <th class="col-divider"></th>
+      <th class="col-check">宛名希望</th>
       <th class="col-action"></th>
     </tr>
   </thead>
@@ -383,7 +385,7 @@ const BASE_ROWS = [
 // ─── 状態 ───
 const state = {
   additions: {}, deleted: {}, edits: {},
-  checks_e: {}, checks_f: {}
+  checks_e: {}, checks_f: {}, checks_g: {}
 };
 
 function getAllRows() {
@@ -424,12 +426,13 @@ function renderTable() {
     if (row.branch !== prevBranch) {
       const hdr = document.createElement('tr');
       hdr.className = 'branch-header';
-      hdr.innerHTML = `<td colspan="7">── ${row.branch} ──</td>`;
+      hdr.innerHTML = `<td colspan="9">── ${row.branch} ──</td>`;
       tbody.appendChild(hdr);
       prevBranch = row.branch;
     }
     const ce = state.checks_e[row.id];
     const cf = state.checks_f[row.id];
+    const cg = state.checks_g[row.id];
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td class="col-branch">${row.branch}</td>
@@ -438,6 +441,8 @@ function renderTable() {
       <td class="col-check"><span class="check-cell${ce?' checked':''}" data-id="${row.id}" data-col="e">${ce?'✔':''}</span></td>
       <td class="col-divider"></td>
       <td class="col-check"><span class="check-cell${cf?' checked':''}" data-id="${row.id}" data-col="f">${cf?'✔':''}</span></td>
+      <td class="col-divider"></td>
+      <td class="col-check"><span class="check-cell${cg?' checked':''}" data-id="${row.id}" data-col="g">${cg?'✔':''}</span></td>
       <td class="col-action">
         <button class="row-action-btn del-btn"  data-id="${row.id}" aria-label="削除">❌</button>
         <button class="row-action-btn edit-btn" data-id="${row.id}" aria-label="修正">
@@ -491,12 +496,14 @@ if (isConfigured) {
     edits:     db.ref('edits'),
     checks_e:  db.ref('checks_e'),
     checks_f:  db.ref('checks_f'),
+    checks_g:  db.ref('checks_g'),
   };
   fbRefs.additions.on('value', s => { state.additions = s.val() || {}; renderTable(); });
   fbRefs.deleted  .on('value', s => { state.deleted   = s.val() || {}; renderTable(); });
   fbRefs.edits    .on('value', s => { state.edits     = s.val() || {}; renderTable(); });
   fbRefs.checks_e .on('value', s => { state.checks_e  = s.val() || {}; renderTable(); });
   fbRefs.checks_f .on('value', s => { state.checks_f  = s.val() || {}; renderTable(); });
+  fbRefs.checks_g .on('value', s => { state.checks_g  = s.val() || {}; renderTable(); });
 } else {
   renderTable();
 }
@@ -510,16 +517,24 @@ document.getElementById('tbody').addEventListener('click', e => {
     const col = cell.dataset.col;
     const newVal = !state[`checks_${col}`][id];
     const row = getRow(id);
-    const label = col === 'e' ? '会計済み' : '個別領収書';
+    const label = col === 'e' ? '会計済み' : col === 'f' ? '個別領収書' : '宛名希望';
+    const extraNote = (col === 'g' && newVal && !state.checks_f[id])
+      ? '<br><small style="color:#888">※個別領収書も同時にチェックされます</small>' : '';
     showModal({
       icon: newVal ? '✔' : '🗑️',
       title: newVal ? `「${label}」にしますか？` : `「${label}」のチェックを外しますか？`,
-      body: `<strong>${row.name}</strong><br>${row.shop}`,
+      body: `<strong>${row.name}</strong><br>${row.shop}${extraNote}`,
       okLabel: newVal ? '済みにする' : '外す',
       okDanger: !newVal,
       onOk: () => {
-        if (isConfigured) fbRefs[`checks_${col}`].child(id).set(newVal ? true : null);
-        else { if (newVal) state[`checks_${col}`][id] = true; else delete state[`checks_${col}`][id]; renderTable(); }
+        if (isConfigured) {
+          fbRefs[`checks_${col}`].child(id).set(newVal ? true : null);
+          if (col === 'g' && newVal) fbRefs.checks_f.child(id).set(true);
+        } else {
+          if (newVal) state[`checks_${col}`][id] = true; else delete state[`checks_${col}`][id];
+          if (col === 'g' && newVal) state.checks_f[id] = true;
+          renderTable();
+        }
       }
     });
     return;
