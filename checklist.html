@@ -301,7 +301,7 @@ const BRANCHES = [
   '東京城北','東京中央','東京西','東京多摩','東京東','東京南','東京北','東京墨東',
   '神奈川',
   '新潟','富山','石川','福井','山梨','長野','岐阜','静岡',
-  '愛知東','三重',
+  '愛知東','愛知西','三重',
   '近江大和','京都',
   '大阪北','大阪南','兵庫','奈良','和歌山',
   '鳥取','島根','岡山','広島','山口',
@@ -309,6 +309,28 @@ const BRANCHES = [
   '福岡','佐賀','長崎','熊本','大分','宮崎','鹿児島','沖縄'
 ];
 const BRANCH_ORDER = Object.fromEntries(BRANCHES.map((b, i) => [b, i]));
+
+// 支部 → 合同支部
+const BRANCH_TO_GROUP = {
+  '道北':'北海道',
+  '青森':'東北','岩手':'東北','宮城':'東北','秋田':'東北','山形':'東北','福島':'東北',
+  '茨城':'関東甲信越','栃木':'関東甲信越','群馬':'関東甲信越','埼玉':'関東甲信越',
+  '千葉':'関東甲信越','神奈川':'関東甲信越','新潟':'関東甲信越','山梨':'関東甲信越','長野':'関東甲信越',
+  '東京城北':'東京','東京中央':'東京','東京西':'東京','東京多摩':'東京',
+  '東京東':'東京','東京南':'東京','東京北':'東京','東京墨東':'東京',
+  '富山':'北陸','石川':'北陸','福井':'北陸',
+  '岐阜':'新東海','静岡':'新東海','三重':'新東海',
+  '愛知東':'愛知','愛知西':'愛知',
+  '近江大和':'近畿','京都':'近畿','兵庫':'近畿','奈良':'近畿','和歌山':'近畿',
+  '大阪北':'大阪','大阪南':'大阪',
+  '鳥取':'中国','島根':'中国','岡山':'中国','広島':'中国','山口':'中国',
+  '徳島':'四国','香川':'四国','愛媛':'四国','高知':'四国',
+  '福岡':'九州','佐賀':'九州','長崎':'九州','熊本':'九州','大分':'九州','宮崎':'九州','鹿児島':'九州','沖縄':'九州',
+};
+const GROUP_ORDER = {
+  '北海道':0,'東北':1,'関東甲信越':2,'東京':3,'北陸':4,
+  '新東海':5,'愛知':6,'近畿':7,'大阪':8,'中国':9,'四国':10,'九州':11
+};
 
 // 初期データ
 const BASE_ROWS = [
@@ -380,6 +402,10 @@ const BASE_ROWS = [
   { id:'b65', branch:'佐賀',     name:'曲渕　剛太',    shop:'あさひ薬局' },
   { id:'b66', branch:'佐賀',     name:'大野　太',      shop:'エイト薬局目逹原店' },
   { id:'b67', branch:'佐賀',     name:'高祖　仁志',    shop:'コーソ薬局　諸富店' },
+  { id:'b68', branch:'愛知西',   name:'八幡　博美',    shop:'ヤハタ薬局二ツ杁店' },
+  { id:'b69', branch:'茨城',     name:'難波和世',      shop:'春日薬局' },
+  { id:'b70', branch:'東京西',   name:'中島　慎一郎',  shop:'石井薬局' },
+  { id:'b71', branch:'東京墨東', name:'相羽　信朗',    shop:'遠山薬局' },
 ];
 
 // ─── 状態 ───
@@ -410,6 +436,9 @@ function getVisibleRows() {
       return ed ? { ...r, name: ed.name ?? r.name, shop: ed.shop ?? r.shop } : r;
     })
     .sort((a, b) => {
+      const ga = GROUP_ORDER[BRANCH_TO_GROUP[a.branch]] ?? 99;
+      const gb = GROUP_ORDER[BRANCH_TO_GROUP[b.branch]] ?? 99;
+      if (ga !== gb) return ga - gb;
       const oa = BRANCH_ORDER[a.branch] ?? 99;
       const ob = BRANCH_ORDER[b.branch] ?? 99;
       return oa !== ob ? oa - ob : (a.id < b.id ? -1 : 1);
@@ -421,14 +450,15 @@ function renderTable() {
   const rows = getVisibleRows();
   const tbody = document.getElementById('tbody');
   tbody.innerHTML = '';
-  let prevBranch = null;
+  let prevGroup = null;
   rows.forEach(row => {
-    if (row.branch !== prevBranch) {
+    const group = BRANCH_TO_GROUP[row.branch] || row.branch;
+    if (group !== prevGroup) {
       const hdr = document.createElement('tr');
       hdr.className = 'branch-header';
-      hdr.innerHTML = `<td colspan="9">── ${row.branch} ──</td>`;
+      hdr.innerHTML = `<td colspan="9">── ${group} ──</td>`;
       tbody.appendChild(hdr);
-      prevBranch = row.branch;
+      prevGroup = group;
     }
     const ce = state.checks_e[row.id];
     const cf = state.checks_f[row.id];
