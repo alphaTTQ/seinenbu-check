@@ -762,16 +762,26 @@ document.getElementById('fab-gs').addEventListener('click', () => {
     alert('Google Client IDが設定されていません。\nGOOGLE_CLIENT_ID を設定してください。');
     return;
   }
-  if (!tokenClient) { initGoogleTokenClient(); }
-  if (!tokenClient) { alert('Google認証ライブラリの読み込み中です。しばらくしてから再度お試しください。'); return; }
-  const btn = document.getElementById('fab-gs');
-  btn.disabled = true;
-  if (gsAccessToken) {
-    doExportToSheets().finally(() => { btn.disabled = false; });
-  } else {
-    tokenClient.requestAccessToken();
-    btn.disabled = false;
-  }
+  const rows = getVisibleRows();
+  showModal({
+    icon: '📊',
+    title: 'スプレッドシートにエクスポート',
+    body: `現在表示中の <strong>${rows.length}名</strong> のリストをGoogleスプレッドシートとして出力します。`,
+    okLabel: 'エクスポート',
+    okDanger: false,
+    onOk: () => {
+      if (!tokenClient) { initGoogleTokenClient(); }
+      if (!tokenClient) { alert('Google認証ライブラリの読み込み中です。しばらくしてから再度お試しください。'); return; }
+      const btn = document.getElementById('fab-gs');
+      btn.disabled = true;
+      if (gsAccessToken) {
+        doExportToSheets().finally(() => { btn.disabled = false; });
+      } else {
+        tokenClient.requestAccessToken();
+        btn.disabled = false;
+      }
+    }
+  });
 });
 
 async function doExportToSheets() {
