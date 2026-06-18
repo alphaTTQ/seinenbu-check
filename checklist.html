@@ -6,6 +6,7 @@
   <title>青年部 チェックリスト</title>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -120,6 +121,28 @@
     #fab-edit { background: #2c5f8a; }
     #fab-del.active  { background: #c62828; }
     #fab-edit.active { background: #c62828; }
+
+    /* エクスポートFAB */
+    #fab-export {
+      position: fixed;
+      bottom: 20px; left: 16px;
+      z-index: 50;
+    }
+    #fab-gs {
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      border: none;
+      background: #1a7340;
+      color: #fff;
+      font-size: 22px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.28);
+      -webkit-tap-highlight-color: transparent;
+      transition: opacity 0.15s, transform 0.15s;
+    }
+    #fab-gs:active { opacity: 0.8; transform: scale(0.93); }
+    #fab-gs:disabled { background: #aaa; cursor: not-allowed; }
 
     /* オーバーレイ共通 */
     .overlay {
@@ -265,6 +288,15 @@
   </thead>
   <tbody id="tbody"></tbody>
 </table>
+
+<!-- エクスポートFAB (左下) -->
+<div id="fab-export">
+  <button id="fab-gs" aria-label="Googleスプレッドシートにエクスポート">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14H7v-2h5v2zm5-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+    </svg>
+  </button>
+</div>
 
 <!-- FABグループ: [＋] [－] [✏] -->
 <div id="fab-group">
@@ -704,6 +736,102 @@ document.addEventListener('click', e => {
     }
   }
 });
+
+// ─── Google Sheets エクスポート ───
+const GOOGLE_CLIENT_ID = '1011136660662-6b4lu931spbonrr37dlb92bu7ssrat0b.apps.googleusercontent.com';
+const SHEETS_SCOPE = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
+let tokenClient = null;
+let gsAccessToken = null;
+
+function initGoogleTokenClient() {
+  if (typeof google === 'undefined' || !google.accounts) return;
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: SHEETS_SCOPE,
+    callback: async (response) => {
+      if (response.error) { alert('Google認証に失敗しました: ' + response.error); return; }
+      gsAccessToken = response.access_token;
+      await doExportToSheets();
+    }
+  });
+}
+window.addEventListener('load', () => { setTimeout(initGoogleTokenClient, 500); });
+
+document.getElementById('fab-gs').addEventListener('click', () => {
+  if (GOOGLE_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID') {
+    alert('Google Client IDが設定されていません。\nGOOGLE_CLIENT_ID を設定してください。');
+    return;
+  }
+  if (!tokenClient) { initGoogleTokenClient(); }
+  if (!tokenClient) { alert('Google認証ライブラリの読み込み中です。しばらくしてから再度お試しください。'); return; }
+  const btn = document.getElementById('fab-gs');
+  btn.disabled = true;
+  if (gsAccessToken) {
+    doExportToSheets().finally(() => { btn.disabled = false; });
+  } else {
+    tokenClient.requestAccessToken();
+    btn.disabled = false;
+  }
+});
+
+async function doExportToSheets() {
+  const btn = document.getElementById('fab-gs');
+  btn.disabled = true;
+  try {
+    const rows = getVisibleRows();
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+    const title = `青年部会計チェックリスト_${dateStr}`;
+
+    const headers = ['合同支部', '支部', '氏名', '店名', '会計済み', '個別領収書', '宛名希望'];
+    const dataRows = rows.map(row => [
+      BRANCH_TO_GROUP[row.branch] || row.branch,
+      row.branch,
+      row.name,
+      row.shop,
+      state.checks_e[row.id] ? '〇' : '',
+      state.checks_f[row.id] ? '〇' : '',
+      state.checks_g[row.id] ? '〇' : '',
+    ]);
+
+    const allRows = [headers, ...dataRows].map(row => ({
+      values: row.map(v => ({ userEnteredValue: { stringValue: String(v) } }))
+    }));
+
+    const res = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${gsAccessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        properties: { title },
+        sheets: [{
+          properties: { title: 'チェックリスト', sheetId: 0 },
+          data: [{ startRow: 0, startColumn: 0, rowData: allRows }]
+        }]
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      if (err.error?.code === 401) {
+        gsAccessToken = null;
+        tokenClient.requestAccessToken();
+        return;
+      }
+      alert('エクスポートに失敗しました: ' + (err.error?.message || res.status));
+      return;
+    }
+
+    const sheet = await res.json();
+    window.open(`https://docs.google.com/spreadsheets/d/${sheet.spreadsheetId}`, '_blank');
+  } catch(e) {
+    alert('エクスポート中にエラーが発生しました: ' + e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
 
 // ─── 支部ドロップダウン生成 ───
 const sel = document.getElementById('form-branch');
